@@ -3,71 +3,15 @@
 ###############################################################################
 import os
 import pandas as pd 
-import numpy as np 
-import matplotlib 
-import matplotlib.pyplot as plt 
-matplotlib.style.use('ggplot')
+import numpy as np
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+import plotly.express as px
+import plotly.graph_objects as go
 import seaborn as sns
 
-def visual_plot(df, )
-def scatterplot(df, x: str, y: str, outPutPath: str = "."): 
-    """ Function to create the scatter plot for our dataframe including the
-    directory to save the images from the outputs of scatter function  
-    =============================================================
-    ARGUMENTS
-    =============================================================
-    df ([type]): our input dataframe 
-    x (str): the featrure in the x axis
-    y (str): the feature in the y axis
-    outPutPath (str): our output directory
-    =============================================================
-    RETURNS: the saved scatterplot images in our working environment
-    =============================================================
-    """
-    if not os.path.exists(outPutPath):
-        os.makedirs(outPutPath)
-    else:
-        print("Directory already exists")
-    Scatter = ("C:/Users/miki/Desktop/VSML/cluster-machine-learning/reports/figures/ScatterPlots")
-    outPuts = os.path.join(outPutPath, Scatter)
-    fig, ax = plt.subplots(figsize= (14, 9))
-    graph = sns.scatterplot(ax=ax, x=x, y=y, data=df, s=325, alpha=0.5, hue="country")
-    box = ax.get_position()
-    plt.legend(markerscale=2)
-    img = os.path.join(outPuts, "{}v{}.png".format(x, y))
-    plt.savefig(img)
-    plt.show()
-    return img
-def histogram(df, x, outPutPath: str = "."):
-    """ 
-    Function to create the summary statistics histogram plots for 
-    our input dataframe and save the results into the figure output
-    paths
-    Args:
-        df(dataframe): input data
-        x (int or float): Dataframe features
-        outPutPath (str): _description_
-    return:
-        Histogram plot
-    """
-    
-    HistoGramPlot = ("C:/Users/miki/Desktop/VSML/cluster-machine-learning/reports/figures/HistoGram")
-    if not os.path.exists(outPutPath):
-        os.makedirs(outPutPath)
-    else:
-        print("Directory already exists")
-    result = os.path.join(outPutPath, HistoGramPlot)
-    if x.dtype == 'int64' or x.dtype == 'float64':
-        output = sns.displot(data=df, x=x, bins = 10, kind='hist',hue_norm=None, kde = True, color=None, col_wrap=None,height=5, aspect=1, facet_kws=None)
-        y = plt.ylabel('Frequency', size = 17)
-        plt.grid = False
-        plt.xticks(size = 17)
-        plt.yticks(size = 17)
-        plt.title(x.name, size = 19) 
-        img = os.path.join(result, "{}v{}.png".format(x, y))
-        plt.savefig('C:/Users/miki/Desktop/VSML/cluster-machine-learning/reports/figures/HistoGramPlot/img.png')
-        return img
-def pairplot(data, OutPutPath: str = '.'):
+def pairplot(data, figures: str = '.'):
     """Function to create the scatter plot for the comparison of 
     numerical variables with that of non numerical categorical variables
     and we use the nominal variable as hue to so as to depict the difference
@@ -76,17 +20,56 @@ def pairplot(data, OutPutPath: str = '.'):
     Args:
         data (pandas dataframe): _description_
     """
-    if not os.path.exists(OutPutPath):
-        os.makedirs(OutPutPath)
+    if not os.path.exists(figures):
+        os.makedirs(figures)
     else:
         print("Directory already exists")
-    PairPlot = ("C:/Users/miki/Desktop/VSML/cluster-machine-learning/reports/figures/PairPlots")
-    outputs = os.path.join(OutPutPath, PairPlot)
-    graph = sns.pairplot(data = data,  x_vars=["IS", "IU_Per100", "MCS_Per100", "TEG"],
-                        y_vars=["IS", "IU_Per100", "MCS_Per100", "TEG"], hue="country", kind = 'scatter')
-    fig = os.path.join(outputs, "{}.png".format(graph))
-    graph.figure.savefig("C:/Users/miki/Desktop/VSML/cluster-machine-learning/reports/figures/PairPlots/pairplot.png")
-    return fig
-def correlationPlot():
-    pass
+    fig = px.scatter_matrix(data, dimensions=["water_prc", "elect_prc", "tel_prc"], color="Districts")
+    # fig.write_image("figures/pair.png")
+    fig.show()
 
+def component_no(data):
+    """_summary_
+
+    Args:
+        data (_type_): _description_
+    """
+    # summarizing of data with multiple features are with covarience and correlation coefficient
+    # for single variable the summaries are with mean, mode and standard deviations
+    input = data.drop(['Districts'], axis = 1)
+    pca = PCA().fit(input)
+    plt.figure(figsize = (8, 4))
+    components = np.arange(1, 4, 1)
+    variance = np.cumsum(pca.explained_variance_ratio_)
+    ylim = (0.0, 1.1)
+    plt.plot(components, variance, marker = 'o', linestyle = '--', color = 'r')
+    plt.xticks(np.arange(1, 4, step=1))
+    plt.xlabel(('Number of Components'))
+    plt.title("Number of Components to explain Variance")
+    plt.ylabel(str("% Cumulative Variance"))
+    plt.axhline(y = 0.95, color = 'b', linestyle = '-')
+    plt.text(2, 0.94, '95% Variance cut-off', color = 'r', fontsize = 10)
+    return plt.show()
+
+def kplots(df, n_init= 10, plot=True):
+    """"""
+    wcss = []
+    for i in range(1, 11):
+        model = KMeans(n_clusters=i,init='k-means++', max_iter=300, n_init=n_init, random_state=42)
+        model.fit(df)
+        wcss.append(model.inertia_)
+    k = [i*100 for i in np.diff(wcss,2)].index(min([i*100 for i in np.diff(wcss,2)]))
+    if plot:
+        x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=x, y=wcss,
+                            mode='lines',
+                            name='lines'))
+        fig.update_layout(title='Elbow Method for k',
+                   xaxis_title='Number of Clusters',
+                   yaxis_title='Distortions')
+        fig.add_vline(x=k, line_dash="dot",
+              annotation_text="k = "+str(k), 
+              annotation_position="top right")
+        fig.show()
+    return k 
